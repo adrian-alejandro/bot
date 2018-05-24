@@ -1,15 +1,12 @@
-import os
-import logging
 import random
 import codecs
 
 import peewee
-from structlog import get_logger
-from telegram import ChatAction
 from telegram.ext.dispatcher import run_async
+from structlog import get_logger
 
-from models import User, Question
-from .vocabulary import (
+from eduzen_bot.models import User, Question
+from adictionary import (
     GREETING_KEYWORDS,
     GREETING_RESPONSES,
     INTRO_QUESTIONS,
@@ -27,13 +24,9 @@ from .vocabulary import (
     MACRI_RESPONSES,
 )
 
-os.environ["NLTK_DATA"] = os.getcwd() + "/nltk_data"
-from textblob import TextBlob
-
+logger = get_logger(filename=__name__)
 chats = {"-288031841": "t3"}
-
-logger = logging.getLogger(__name__)
-
+logger.info("edu")
 
 @run_async
 def get_or_create_user(user):
@@ -179,45 +172,3 @@ def parse_regular_chat(msg):
 def prepare_text(text):
     text = text.replace("@eduzenbot", "").replace("@eduzen_bot", "").strip()
     return text.replace(" ?", "?")
-
-
-@run_async
-def parse_msgs(bot, update):
-
-    username = update.message.from_user.username
-    chat_id = update.message.chat_id
-
-    logger.info("parse_msgs... by %s", username)
-
-    record_msg(update.message.from_user.name, update.message.text, chat_id=chat_id)
-
-    get_or_create_user(update.message.from_user)
-
-    text = prepare_text(update.message.text)
-    blob = TextBlob(text)
-
-    entities = update.message.parse_entities()
-    if not entities:
-        answer, gif = parse_regular_chat(blob)
-        if answer:
-            bot.send_chat_action(
-                chat_id=update.message.chat_id, action=ChatAction.TYPING
-            )
-        if answer and not gif:
-            bot.send_message(chat_id=update.message.chat_id, text=answer)
-        elif answer and gif:
-            bot.send_document(chat_id=update.message.chat_id, document=answer)
-        return
-
-    mentions = [
-        value
-        for key, value in entities.items()
-        if "@eduzen_bot" in value or "@eduzenbot" in value
-    ]
-    if not mentions:
-        return
-
-    bot.send_chat_action(chat_id=update.message.chat_id, action=ChatAction.TYPING)
-    answer = parse_chat(blob)
-
-    bot.send_message(chat_id=update.message.chat_id, text=answer)

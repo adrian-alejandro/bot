@@ -44,5 +44,5 @@ def subte(bot, update, args):
 
     metrovias = get_estado_metrovias_html()
     if metrovias:
-        metrovias = f"Web metrovias {metro}:\n{metrovias}"
+        metrovias = f"Web metrovias {metro}: {metrovias}"
         bot.send_message(chat_id=update.message.chat_id, text=metrovias)

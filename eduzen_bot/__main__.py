@@ -28,10 +28,8 @@ from eduzen_bot import initialize_logging, set_handler
 from eduzen_bot.telegram_bot import TelegramBot
 
 from plugins.job_queue.alarms.command import set_timer, unset
-from plugins.messages.inline import code_markdown
-from plugins.messages.unknown import unknown
+from plugins.inline.markdown import command
 from plugins.commands.questions.menu import button
-from plugins.messages.message import (parse_msgs)
 from plugins.commands.questions.menu import q_menu
 
 COMMANDS = {"question_menu": q_menu, "qmenu": q_menu}
@@ -56,10 +54,7 @@ def main():
         CommandHandler("restart", restart, filters=Filters.user(username="@eduzen"))
     )
 
-    message_handlers = [parse_msgs]
-
     bot.register_commands(COMMANDS)
-    bot.register_message_handler(message_handlers)
 
     set_handler = bot.create_command_args(
         "set", set_timer, pass_args=True, pass_job_queue=True, pass_chat_data=True
@@ -71,11 +66,8 @@ def main():
     )
     bot.add_handler(unset_handler)
 
-    code_handler = bot.create_inlinequery(code_markdown)
+    code_handler = bot.create_inlinequery(command)
     bot.add_handler(code_handler)
-
-    unknown_handler = bot.create_msg(unknown, Filters.command)
-    bot.add_handler(unknown_handler)
 
     bot.add_handler(CallbackQueryHandler(button))
     bot.start()
@@ -93,4 +85,4 @@ if __name__ == "__main__":
         logger.info("Starting main...")
         main()
     except Exception:
-        logger.exception("bye bye")
+        logger.exception("Algo malo pasó")

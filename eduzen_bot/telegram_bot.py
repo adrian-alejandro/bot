@@ -16,6 +16,11 @@ logger = structlog.get_logger(filename=__name__)
 here = os.path.abspath(os.path.dirname(__file__))
 get_path = partial(os.path.join, here)
 
+FILTERS = {
+    'command': Filters.command,
+    'text': Filters.text,
+}
+
 
 class TelegramBot(object):
     """Just a class for python-telegram-bot"""
@@ -55,6 +60,8 @@ class TelegramBot(object):
         except TelegramError:
             # handle all other telegram related errors
             logger.error('Update "%s" caused error "%s"', (update, error))
+        except Exception:
+            logger.exception('Update "%s" caused error "%s"', (update, error))
 
     def add_handler(self, handler):
         self.dispatcher.add_handler(handler)
@@ -108,7 +115,7 @@ class TelegramBot(object):
             plugins[command[0]] = getattr(plugin, command[1])
         return plugins
 
-    def _get_plugins(self):
+    def _get_cmd_plugins(self):
         plugins = {}
         plugins_path = get_path("plugins/commands")
         for importer, package_name, _ in pkgutil.iter_modules([plugins_path]):
@@ -124,9 +131,26 @@ class TelegramBot(object):
 
         return plugins
 
+    def _get_msg_plugins(self):
+        plugins_path = get_path("plugins/messages")
+        for importer, package_name, _ in pkgutil.iter_modules([plugins_path]):
+            logger.info(f"Loading {package_name}...")
+            sub_modules = get_path(plugins_path, package_name)
+            importer.find_module(package_name).load_module(package_name)
+            for importer, package_name, _ in pkgutil.iter_modules([sub_modules]):
+                plugin = importer.find_module(package_name).load_module(package_name)
+                if not plugin.__doc__:
+                    continue
+
+                for line in plugin.__doc__.strip().splitlines():
+                    command = [substring.strip() for substring in line.strip().split("-")]
+                    func = getattr(plugin, command[0])
+                    flt = FILTERS.get(command[1])
+                    cmd = self.create_msg(func, filters=flt)
+                    self.add_handler(cmd)
+
     def _load_plugins(self):
         logger.info("Loading plugins...")
-        plugins = self._get_plugins()
-        logger.info(f"Registering commands!")
+        plugins = self._get_cmd_plugins()
         self.register_commands(plugins)
-        logger.info(f"Commands added!")
+        self._get_msg_plugins()
